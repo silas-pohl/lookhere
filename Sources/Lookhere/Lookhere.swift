@@ -148,6 +148,8 @@ final class Lookhere: ObservableObject {
         lastPress = now
         inputLog.notice("press from \(source, privacy: .public)")
         lastClick = NSEvent.mouseLocation
+        // The sound goes with the click itself; waiting for the pointer's impact made it lag.
+        if prefs.sound { sound.play(volume: Float(prefs.volume)) }
         engine.press(at: CACurrentMediaTime())
         needsRedraw = true
     }
@@ -189,11 +191,10 @@ final class Lookhere: ObservableObject {
         CATransaction.commit()
 
         for intensity in f.impacts {
-            if prefs.sound { sound.play(volume: Float(prefs.volume)) }
             guard prefs.flashes,
                   let w = overlays.first(where: { NSMouseInRect(lastClick, $0.screenFrame, false) }) else { continue }
             let at = CGPoint(x: lastClick.x - w.screenFrame.minX, y: lastClick.y - w.screenFrame.minY)
-            let effect = TapEffect(at: at, size: art.flashDiameter, intensity: intensity, bounce: false,
+            let effect = TapEffect(at: at, size: art.flashDiameter, intensity: intensity,
                                    start: t, contentsScale: w.overlay.contentsScale)
             w.overlay.addEffect(effect)
             effects.append(effect)

@@ -2,13 +2,14 @@ import AppKit
 import Combine
 
 enum PointerStyle: String, CaseIterable, Identifiable {
-    case glove, arrow, fish
+    case glove, rude, arrow, fish
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
         case .glove: return "Glove"
+        case .rude: return "Rude"
         case .arrow: return "Arrow"
         case .fish: return "Fishy"
         }
@@ -17,11 +18,14 @@ enum PointerStyle: String, CaseIterable, Identifiable {
     /// Fingertip and where the stick attaches, in the SVG-style authoring space (nil for the arrow).
     var anchors: (tip: CGPoint, stick: CGPoint)? {
         switch self {
-        case .glove: return (GloveArt.tip, GloveArt.cuffCentre)
+        case .glove, .rude: return (GloveArt.tip, GloveArt.cuffCentre)
         case .fish: return (FishArt.tip, FishArt.stickAnchor)
         case .arrow: return nil
         }
     }
+
+    /// Whether the glove colours apply.
+    var isGlove: Bool { self == .glove || self == .rude }
 }
 
 enum GloveColor: String, CaseIterable, Identifiable {

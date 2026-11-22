@@ -3,7 +3,7 @@ import AppKit
 /// Cartoon glove pointing up, authored as SVG path data (y down, ~250 × 310).
 /// One continuous silhouette with a flat fill, cel shading and a few detail lines.
 enum GloveArt {
-    static let canvas = CGSize(width: 270, height: 340)
+    static let canvas = CGSize(width: 300, height: 340)
     /// Fingertip and the centre of the cuff, in SVG units.
     static let tip = CGPoint(x: 129, y: 11)
     static let cuffCentre = CGPoint(x: 161, y: 292)
@@ -26,7 +26,26 @@ enum GloveArt {
     private static let thumbCrease = "M 106 150 C 111 164 109 178 102 188"
     private static let stitches = "M 144 214 C 146 222 147 230 146 238 M 162 212 C 165 220 166 228 165 236 M 180 210 C 184 218 185 226 184 234"
 
-    static func draw(in ctx: CGContext, fill: NSColor) {
+    /// A hand-drawn glove from the app's Resources, stood upright onto `tip` and `cuffCentre`.
+    struct Picture {
+        let image: CGImage?
+        /// Fingertip and cuff centre in the image's pixels (y down); the drawings lean, so these set the rotation.
+        let tip: CGPoint, cuff: CGPoint
+
+        init(_ name: String, tip: CGPoint, cuff: CGPoint) {
+            image = Bundle.main.url(forResource: name, withExtension: "png")
+                .flatMap { NSImage(contentsOf: $0)?.cgImage(forProposedRect: nil, context: nil, hints: nil) }
+            self.tip = tip
+            self.cuff = cuff
+        }
+
+        static let pointing = Picture("Glove", tip: CGPoint(x: 280, y: 146), cuff: CGPoint(x: 745, y: 1040))
+        static let middleFinger = Picture("MiddleFinger", tip: CGPoint(x: 469, y: 136), cuff: CGPoint(x: 720, y: 1040))
+    }
+
+    /// Draws `picture` when it's bundled, otherwise the vector glove.
+    static func draw(in ctx: CGContext, fill: NSColor, picture: Picture = .pointing) {
+        if let image = picture.image { return drawPicture(image, picture, in: ctx, fill: fill) }
         let base = fill.usingColorSpace(.sRGB) ?? fill
         let shade = base.blended(withFraction: 0.2, of: NSColor(srgbRed: 0.36, green: 0.40, blue: 0.56, alpha: 1))!
         let handPath = SVGPath.parse(hand), cuffPath = SVGPath.parse(cuff)
@@ -57,6 +76,39 @@ enum GloveArt {
             ctx.setLineWidth(6)
             ctx.strokePath()
         }
+    }
+
+    /// The picture stood upright with its fingertip and cuff on `tip` and `cuffCentre`, tinted by multiplying
+    /// in the glove colour (the ink stays black). White leaves the art as drawn.
+    private static func drawPicture(_ image: CGImage, _ picture: Picture, in ctx: CGContext, fill: NSColor) {
+        let base = fill.usingColorSpace(.sRGB) ?? fill
+        let from = CGVector(dx: picture.cuff.x - picture.tip.x, dy: picture.cuff.y - picture.tip.y)
+        let to = CGVector(dx: cuffCentre.x - tip.x, dy: cuffCentre.y - tip.y)
+        let rect = CGRect(x: 0, y: 0, width: image.width, height: image.height)
+
+        ctx.saveGState()
+        ctx.translateBy(x: tip.x, y: tip.y)
+        ctx.rotate(by: atan2(to.dy, to.dx) - atan2(from.dy, from.dx))
+        let s = hypot(to.dx, to.dy) / hypot(from.dx, from.dy)
+        ctx.scaleBy(x: s, y: s)
+        ctx.translateBy(x: -picture.tip.x, y: -picture.tip.y)
+        // The context is y-down, so flip the image back upright within its own rect.
+        ctx.translateBy(x: 0, y: rect.height)
+        ctx.scaleBy(x: 1, y: -1)
+
+        // Soft drop shadow so the glove reads on any background; it's applied to the whole tinted layer.
+        // Shadow offsets ignore the CTM, so this matches the vector glove's.
+        ctx.setShadow(offset: CGSize(width: 0, height: -5), blur: 12, color: CGColor(gray: 0, alpha: 0.32))
+        ctx.beginTransparencyLayer(auxiliaryInfo: nil)
+        ctx.draw(image, in: rect)
+        if base.brightnessComponent < 0.99 || base.saturationComponent > 0.05 {
+            ctx.clip(to: rect, mask: image)
+            ctx.setBlendMode(.multiply)
+            ctx.setFillColor(base.cgColor)
+            ctx.fill(rect)
+        }
+        ctx.endTransparencyLayer()
+        ctx.restoreGState()
     }
 
     /// Flat fill with a shadow crescent on the lower-right edge, then the outline.

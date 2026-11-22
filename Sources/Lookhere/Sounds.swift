@@ -24,44 +24,64 @@ enum SoundChoice: String, CaseIterable, Identifiable {
     }
 }
 
-/// Plays the tap sound. Several players so rapid taps overlap instead of cutting off,
-/// and a little random pitch so a run of taps doesn't sound like a machine gun.
+/// Plays the tap sound with as little delay as possible: an always-running audio engine and
+/// buffers decoded up front, so a tap only has to schedule one. Several player nodes let rapid
+/// taps overlap instead of cutting off, and a few pre-pitched copies stand in for random
+/// pitch, so a run of taps doesn't sound like a machine gun.
 final class TapSound {
-    private var players: [AVAudioPlayer] = []
+    private let engine = AVAudioEngine()
+    private let nodes = (0..<6).map { _ in AVAudioPlayerNode() }
+    /// Pitch variants, with the unshifted one in the middle.
+    private var buffers: [AVAudioPCMBuffer] = []
     private var next = 0
+
+    init() {
+        nodes.forEach { engine.attach($0) }
+        // The output device changed (headphones, AirPlay…): the engine stops, so start it again.
+        NotificationCenter.default.addObserver(forName: .AVAudioEngineConfigurationChange, object: engine,
+                                               queue: .main) { [weak self] _ in self?.start() }
+    }
 
     /// Returns false if a custom file couldn't be loaded (Clack is used instead).
     @discardableResult
     func load(_ choice: SoundChoice, customPath: String?) -> Bool {
         var ok = true
-        var data: Data
-        if choice == .custom {
-            if let path = customPath, let custom = try? Data(contentsOf: URL(fileURLWithPath: path)),
-               (try? AVAudioPlayer(data: custom)) != nil {
-                data = custom
-            } else {
-                data = Synth.wav(SoundChoice.clack.samples())
-                ok = false
-            }
+        if choice == .custom, let path = customPath, let custom = Self.read(path) {
+            buffers = [custom]
         } else {
-            data = Synth.wav(choice.samples())
+            ok = choice != .custom
+            let samples = (choice == .custom ? SoundChoice.clack : choice).samples()
+            buffers = [0.94, 0.97, 1, 1.035, 1.07].compactMap { Synth.buffer(samples, pitch: $0) }
         }
-        players = (0..<5).compactMap { _ in try? AVAudioPlayer(data: data) }
-        players.forEach {
-            $0.enableRate = true
-            $0.prepareToPlay()
-        }
+        guard let format = buffers.first?.format else { return ok }
+        engine.stop()
+        nodes.forEach { engine.connect($0, to: engine.mainMixerNode, format: format) }
+        start()
         return ok
     }
 
     func play(volume: Float, vary: Bool = true) {
-        guard !players.isEmpty else { return }
-        let p = players[next]
-        next = (next + 1) % players.count
-        p.volume = volume
-        p.rate = vary ? Float.random(in: 0.94...1.07) : 1
-        p.currentTime = 0
-        p.play()
+        guard !buffers.isEmpty, engine.isRunning else { return }
+        let node = nodes[next]
+        next = (next + 1) % nodes.count
+        node.volume = volume
+        let buffer = vary ? buffers.randomElement()! : buffers[buffers.count / 2]
+        node.scheduleBuffer(buffer, at: nil, options: .interrupts)
+        if !node.isPlaying { node.play() }
+    }
+
+    private func start() {
+        guard !engine.isRunning else { return }
+        engine.prepare()
+        try? engine.start()
+        nodes.forEach { $0.play() }
+    }
+
+    private static func read(_ path: String) -> AVAudioPCMBuffer? {
+        guard let file = try? AVAudioFile(forReading: URL(fileURLWithPath: path)), file.length > 0,
+              let buffer = AVAudioPCMBuffer(pcmFormat: file.processingFormat, frameCapacity: AVAudioFrameCount(file.length)),
+              (try? file.read(into: buffer)) != nil else { return nil }
+        return buffer
     }
 }
 
@@ -182,14 +202,36 @@ private enum Synth {
     }
 
     /// Normalizes to 90% peak and wraps as a 16-bit mono WAV.
-    static func wav(_ samples: [Double]) -> Data {
-        let peak = samples.map(abs).max() ?? 1
-        var pcm = Data(capacity: samples.count * 2)
-        // Short fade-out so no sound ends on a click.
+    /// Normalised to a 0.9 peak, with a short fade-out so no sound ends on a click.
+    private static func finished(_ samples: [Double]) -> [Double] {
+        let peak = max(samples.map(abs).max() ?? 1, 1e-9)
         let fade = min(samples.count, rate / 200)
-        for (i, s) in samples.enumerated() {
+        return samples.enumerated().map { i, s in
             let tail = i >= samples.count - fade ? Double(samples.count - i) / Double(fade) : 1
-            var v = Int16(max(-1, min(1, s / peak * 0.9 * tail)) * Double(Int16.max)).littleEndian
+            return max(-1, min(1, s / peak * 0.9 * tail))
+        }
+    }
+
+    /// A playable buffer, resampled so it plays `pitch` times higher (and shorter).
+    static func buffer(_ samples: [Double], pitch: Double) -> AVAudioPCMBuffer? {
+        let src = finished(samples)
+        let count = Int(Double(src.count) / pitch)
+        guard count > 1, let format = AVAudioFormat(standardFormatWithSampleRate: Double(rate), channels: 1),
+              let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: AVAudioFrameCount(count)),
+              let out = buffer.floatChannelData?[0] else { return nil }
+        for i in 0..<count {
+            let x = Double(i) * pitch, k = Int(x), f = x - Double(k)
+            let a = src[min(k, src.count - 1)], b = src[min(k + 1, src.count - 1)]
+            out[i] = Float(a + (b - a) * f)
+        }
+        buffer.frameLength = AVAudioFrameCount(count)
+        return buffer
+    }
+
+    static func wav(_ samples: [Double]) -> Data {
+        var pcm = Data(capacity: samples.count * 2)
+        for s in finished(samples) {
+            var v = Int16(s * Double(Int16.max)).littleEndian
             withUnsafeBytes(of: &v) { pcm.append(contentsOf: $0) }
         }
         var wav = Data()

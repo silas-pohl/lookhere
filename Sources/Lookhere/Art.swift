@@ -111,7 +111,11 @@ enum ArtFactory {
             // Glove and fish paths are authored y-down like SVG.
             ctx.translateBy(x: 10, y: size.height - 10)
             ctx.scaleBy(x: 1, y: -1)
-            if style == .fish { FishArt.draw(in: ctx) } else { GloveArt.draw(in: ctx, fill: color.color) }
+            switch style {
+            case .fish: FishArt.draw(in: ctx)
+            case .rude: GloveArt.draw(in: ctx, fill: color.color, picture: .middleFinger)
+            default: GloveArt.draw(in: ctx, fill: color.color)
+            }
         }
         return cropAndFindTip(ctx)
     }
@@ -144,63 +148,6 @@ enum ArtFactory {
         let crop = CGRect(x: minX, y: minRow, width: maxX - minX + 1, height: maxRow - minRow + 1)
         let image = full.cropping(to: crop)!
         return (image, CGPoint(x: tipX - Double(minX), y: Double(maxRow - tipRow) + 1))
-    }
-
-    // MARK: Impact star
-
-    /// A puffy comic starburst used by the bigger taps. `hot` switches it from yellow to red-orange.
-    static func starburst(hot: Bool) -> CGImage {
-        let side = 400
-        let ctx = bitmap(side, side)
-        let c = CGPoint(x: 200, y: 200)
-        let spikes = 11
-        var rng = SplitMix(seed: hot ? 7 : 3)
-
-        func star(outer: Double, inner: Double) -> CGPath {
-            let path = CGMutablePath()
-            let n = spikes * 2
-            var pts: [CGPoint] = []
-            for i in 0..<n {
-                let a = Double(i) / Double(n) * 2 * .pi - .pi / 2
-                let r = i % 2 == 0 ? outer * (0.88 + rng.unit() * 0.12) : inner
-                pts.append(CGPoint(x: c.x + CGFloat(cos(a) * r), y: c.y + CGFloat(sin(a) * r)))
-            }
-            // Round the valleys slightly so the spikes look inflated rather than sharp-cut.
-            path.move(to: pts[0])
-            for i in 1...n {
-                let p = pts[i % n]
-                if i % 2 == 1 {
-                    let next = pts[(i + 1) % n]
-                    path.addQuadCurve(to: CGPoint(x: (p.x + next.x) / 2, y: (p.y + next.y) / 2), control: p)
-                } else {
-                    path.addLine(to: p)
-                }
-            }
-            path.closeSubpath()
-            return path
-        }
-
-        let body = star(outer: 186, inner: 118)
-        let (top, bottom): (CGColor, CGColor) = hot
-            ? (CGColor(srgbRed: 1, green: 0.55, blue: 0.30, alpha: 1), CGColor(srgbRed: 0.92, green: 0.18, blue: 0.24, alpha: 1))
-            : (CGColor(srgbRed: 1, green: 0.93, blue: 0.45, alpha: 1), CGColor(srgbRed: 1, green: 0.66, blue: 0.12, alpha: 1))
-        ctx.setLineJoin(.round)
-        ctx.saveGState()
-        ctx.addPath(body)
-        ctx.clip()
-        let g = CGGradient(colorsSpace: nil, colors: [top, bottom] as CFArray, locations: [0, 1])!
-        ctx.drawRadialGradient(g, startCenter: c, startRadius: 30, endCenter: c, endRadius: 190, options: [])
-        ctx.restoreGState()
-        ctx.addPath(body)
-        ctx.setStrokeColor(GloveArt.ink)
-        ctx.setLineWidth(10)
-        ctx.strokePath()
-
-        // Inner glow star for depth.
-        ctx.addPath(star(outer: 122, inner: 84))
-        ctx.setFillColor(CGColor(gray: 1, alpha: 0.38))
-        ctx.fillPath()
-        return ctx.makeImage()!
     }
 
     static func bitmap(_ w: Int, _ h: Int) -> CGContext {

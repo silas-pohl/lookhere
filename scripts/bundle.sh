@@ -11,7 +11,9 @@ rm -rf "$APP" build/AppIcon.iconset
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp "$BIN" "$APP/Contents/MacOS/Lookhere"
 cp Resources/Info.plist "$APP/Contents/Info.plist"
-"$BIN" --iconset build/AppIcon.iconset
+cp Resources/Glove.png Resources/MiddleFinger.png "$APP/Contents/Resources/"
+# Run from inside the app so it finds the glove pictures for the icon.
+"$APP/Contents/MacOS/Lookhere" --iconset build/AppIcon.iconset
 iconutil -c icns build/AppIcon.iconset -o "$APP/Contents/Resources/AppIcon.icns"
 codesign --force --sign - "$APP"
 echo "Built $APP"

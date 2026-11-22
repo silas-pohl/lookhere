@@ -39,7 +39,8 @@ struct SettingsView: View {
 
     private var header: some View {
         ZStack(alignment: .topLeading) {
-            PokeStage(style: prefs.style, color: prefs.gloveColor, stick: prefs.stick, animating: visibility.shown && app.running)
+            PokeStage(style: prefs.style, color: prefs.gloveColor, stick: prefs.stick,
+                      ring: prefs.flashes, animating: visibility.shown && app.running)
                 .frame(height: 116)
                 .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
                 .overlay(RoundedRectangle(cornerRadius: 16, style: .continuous).strokeBorder(Ink.ink, lineWidth: 3))
@@ -86,7 +87,7 @@ struct SettingsView: View {
                     .buttonStyle(.plain)
                 }
             }
-            if prefs.style == .glove {
+            if prefs.style.isGlove {
                 labelled("Glove") {
                     ForEach(GloveColor.allCases) { c in
                         Swatch(color: Color(nsColor: c.color), selected: prefs.gloveColor == c) { prefs.gloveColor = c }
@@ -127,7 +128,7 @@ struct SettingsView: View {
                              steps: Mood.allCases.count, fill: moodColor)
             }
             HStack(spacing: 18) {
-                Toggle(isOn: $prefs.flashes) { Text("Bursts").font(Ink.body()) }
+                Toggle(isOn: $prefs.flashes) { Text("Ring").font(Ink.body()) }
                 Toggle(isOn: $prefs.sound) { Text("Sound").font(Ink.body()) }
             }
             if prefs.sound {

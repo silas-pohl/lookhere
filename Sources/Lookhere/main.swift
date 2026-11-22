@@ -6,6 +6,10 @@ if let i = args.firstIndex(of: "--preview"), i + 1 < args.count {
     Showcase.writePreviewSheet(to: args[i + 1])
     exit(0)
 }
+if let i = args.firstIndex(of: "--taps"), i + 1 < args.count {
+    Showcase.writeTapSheet(to: args[i + 1])
+    exit(0)
+}
 if let i = args.firstIndex(of: "--glove"), i + 1 < args.count {
     // Large single-glove render on white and dark, for art iteration.
     let style: PointerStyle = args.contains("fish") ? .fish : .glove
