@@ -1,13 +1,17 @@
+<p align="center">
+  <img src="docs/banner.png" alt="Look here! A playful pointer for macOS screen sharing" width="100%">
+</p>
+
 # Lookhere
 
 A macOS menu-bar app that turns your cursor into a hand-drawn pointer on a
-stick. Every click **taps** the screen with a clack and a comic burst, so
+stick. Every click **taps** the screen with a clack and a comic ink ring, so
 people watching your screen share always know where to look. Rattle off a
 few clicks and it gets more and more excited.
 
 All the art, motion and sound here are original:
-- a hand-drawn classic cartoon glove and Fishy, a goldfish that pokes with its lips (Bézier paths, like an SVG illustration)
-- animated tap bursts: impact ring, speed lines, starburst and confetti
+- a hand-drawn cartoon glove (pointing, or rude), and Fishy, a goldfish that pokes with its lips
+- an animated tap in black comic ink that builds up as you click faster: a ring, then action lines flicking outward, then sparkles and a second ring
 - synthesized tap sounds: Clack (default), Knock, Boop, Pop, Squeak and Boing
 
 ## Install
@@ -45,13 +49,13 @@ can always switch it off with the mouse.
 ## Settings (menu-bar panel)
 
 - **Pointer**:
-  - Style: glove, arrow or Fishy.
-  - Glove colour: white, sunny, cherry, bubblegum, mint or sky.
+  - Style: Glove, Rude (middle finger), Arrow or Fishy.
+  - Glove colour (Glove and Rude): white, sunny, cherry, bubblegum, mint or sky.
   - Stick colour, or no stick.
   - Size: Small to Huge.
 - **Tap**:
-  - Mood: *Mellow*, *Friendly*, *Peppy*, *Rowdy* or *Unhinged*. Clicking in quick succession builds energy, and the bursts escalate from a ring to speed lines to a popping starburst with confetti.
-  - Bursts on or off.
+  - Mood: *Mellow*, *Friendly*, *Peppy*, *Rowdy* or *Unhinged*. Clicking in quick succession builds energy, and each tap adds a little more: a ring, then action lines flicking outward, then sparkles, then a second ring.
+  - Ring on or off.
   - Sound on or off: pick Clack (default), Knock, Boop, Pop, Squeak, Boing or your own file, plus volume.
 - **General**: Hands-off Mode, hide the system cursor, launch at login, Quit.
 
@@ -75,8 +79,8 @@ swift build && .build/debug/Lookhere                          # run unbundled
 | File | Role |
 |---|---|
 | `Engine.swift` | Spring-based lean and poke, click energy (pure logic) |
-| `GloveArt.swift` / `FishArt.swift` | Hand-drawn glove and fish, authored as SVG path data |
-| `Effects.swift` | Animated tap bursts, driven by the frame loop |
+| `GloveArt.swift` / `FishArt.swift` | The glove (drawn from `Resources/Glove.png` and `MiddleFinger.png`) and the fish (SVG path data) |
+| `Effects.swift` | The tap ring, driven by the frame loop |
 | `HandDrawing.swift` | The arrow pointer |
 | `Art.swift` | Rasterises the pointer, finds the fingertip hotspot, draws stick and flashes |
 | `Overlay.swift` | Click-through overlay window per display (Core Animation) |
