@@ -90,12 +90,13 @@ swift build && .build/debug/Lookhere                          # run unbundled
 ## Support
 
 Lookhere is free and open source under the MIT license. If it livened up your
-calls and you'd like to say thanks, there's a **Tip jar ♥** button in the panel
-(and a Sponsor button on GitHub). No pressure — it stays free either way.
+calls and you'd like to say thanks, you can
+[buy me a coffee on Ko-fi](https://ko-fi.com/silaspohl) — that's also where the
+**Tip jar ♥** button in the panel goes. No pressure: it stays free either way.
 
 ## Releasing (maintainers)
 
 1. Bump `CFBundleShortVersionString` in `Resources/Info.plist` and tag `vX.Y.Z`.
 2. Update `url` and `sha256` in `packaging/homebrew/lookhere.rb`
    (`curl -L <tag tarball> | shasum -a 256`) and copy it to the `homebrew-tap` repo as `Formula/lookhere.rb`.
-3. To show the tip jar, set `LHSupportURL` in `Resources/Info.plist` and fill in `.github/FUNDING.yml`.
+3. The tip jar button opens `LHSupportURL` from `Resources/Info.plist` (currently Ko-fi); leave it empty to hide the button.
